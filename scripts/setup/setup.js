@@ -1,49 +1,52 @@
-import fs from 'fs'
+import { IS_GITHUB_ACTIONS } from '@/constants'
+import { LoaderHelper } from '@/helpers/loader-helper'
+import { LogHelper } from '@/helpers/log-helper'
 
-import loader from '@/helpers/loader'
-import log from '@/helpers/log'
-import os from '@/helpers/os'
+import train from '../train/train'
+import generateHTTPAPIKey from '../generate/generate-http-api-key'
+import generateJSONSchemas from '../generate/generate-json-schemas'
 
-import train from '../train'
 import setupDotenv from './setup-dotenv'
 import setupCore from './setup-core'
-import setupPackagesConfig from './setup-packages-config'
-import setupPythonPackages from './setup-python-packages'
+import setupSkills from './setup-skills/setup-skills'
+import setupLLM from './setup-llm'
+import setupBinaries from './setup-binaries'
+import setupTCPServerModels from './setup-tcp-server-models'
+import createInstanceID from './create-instance-id'
+import setFfprobePermissions from './set-ffprobe-permissions'
 
 // Do not load ".env" file because it is not created yet
 
 /**
- * Main entry to setup Leon
+ * Main entry to set up Leon
  */
-(async () => {
+;(async () => {
   try {
-    const info = os.get()
-
-    // Required env vars to setup
-    process.env.LEON_LANG = 'en-US'
-    process.env.PIPENV_PIPFILE = 'bridges/python/Pipfile'
-    process.env.PIPENV_VENV_IN_PROJECT = 'true'
-
     await setupDotenv()
-    loader.start()
-    await Promise.all([
-      setupCore(),
-      setupPackagesConfig()
-    ])
-    await setupPythonPackages()
-    await train()
-    if (info.type === 'windows') {
-      log.info('Windows detected, reinjecting DeepSpeech into package.json...')
-      fs.unlinkSync('package.json')
-      fs.renameSync('package.json.backup', 'package.json')
-      log.success('DeepSpeech has been reinjected into package.json')
+    LoaderHelper.start()
+    await setupCore()
+    await setupSkills()
+    LoaderHelper.stop()
+    if (!IS_GITHUB_ACTIONS) {
+      await setupLLM()
+    } else {
+      LogHelper.info('Skipping LLM setup because it is running in CI')
     }
 
-    log.default('')
-    log.success('Hooray! Leon is installed and ready to go!')
-    loader.stop()
+    await setupBinaries()
+    await setupTCPServerModels()
+    await generateHTTPAPIKey()
+    await generateJSONSchemas()
+    LoaderHelper.start()
+    await train()
+    await setFfprobePermissions()
+    await createInstanceID()
+
+    LogHelper.default('')
+    LogHelper.success('Hooray! Leon is installed and ready to go!')
+    LoaderHelper.stop()
   } catch (e) {
-    log.error(e)
-    loader.stop()
+    LogHelper.error(e)
+    LoaderHelper.stop()
   }
 })()

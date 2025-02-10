@@ -1,19 +1,21 @@
-import loader from '@/helpers/loader'
+import { LoaderHelper } from '@/helpers/loader-helper'
 
 jest.useFakeTimers()
 
 describe('loader helper', () => {
   describe('start()', () => {
+    jest.useFakeTimers()
+    jest.spyOn(global, 'setInterval')
+
     test('starts spinner', () => {
-      expect(loader.start()).toBeObject()
-      jest.runTimersToTime(60000)
+      expect(LoaderHelper.start()).toBeObject()
       expect(setInterval).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('stop()', () => {
     test('stops spinner', () => {
-      expect(loader.stop()).toBeObject()
+      expect(LoaderHelper.stop()).toBeObject()
     })
   })
 })
